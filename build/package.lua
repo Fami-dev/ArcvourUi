@@ -11,11 +11,11 @@ return [[
     "description": "Roblox UI Library for scripts",
     "license": "MIT",
     "scripts": {
-        "dev": "bash build/build.sh dev $INPUT_FILE",
+        "dev": "bash build/build.sh build src/Init.lua",
         "build": "bash build/build.sh build $INPUT_FILE",
         "live": "python -m http.server 8642",
-        "watch": "chokidar . -i 'node_modules' -i 'dist' -i 'build' -c 'npm run dev --'",
-        "live-build": "concurrently \"npm run live\" \"npm run watch --\"",
+        "watch": "chokidar . -i \"node_modules\" -i \"dist\" -i \"build\" -i \"builder\" -c \"bash build/build.sh build src/Init.lua\"",
+        "live-build": "concurrently \"npm run live\" \"npm run watch\"",
         "example-live-build": "INPUT_FILE=main_example.lua npm run live-build",
         "updater": "python updater/main.py"
     },
@@ -30,5 +30,4 @@ return [[
         "chokidar-cli": "^3.0.0",
         "concurrently": "^9.2.0"
     }
-}
-]]
+}]]

@@ -1,10 +1,15 @@
 local RunService = game:GetService("RunService")
 local WindUI = {
+    -- Rebuild trigger 2
     Window = nil,
     Theme = nil,
     Creator = require("./modules/Creator"),
     LocalizationModule = require("./modules/Localization"),
     NotificationModule = require("./components/Notification"),
+    
+    Intro = require("./modules/Intro"),
+    FloatingButton = require("./modules/FloatingButton"),
+    
     Themes = nil,
     Transparent = false,
     

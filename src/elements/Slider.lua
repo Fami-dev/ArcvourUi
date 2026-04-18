@@ -30,9 +30,9 @@ function Element:New(Config)
         IsFocusing = false,
         
         Width = Config.Width or 130,
-        TextBoxWidth = Config.Window.NewElements and 40 or 30,
         ThumbSize = 13,
         IconSize = 26,
+        Suffix = Config.Suffix or "",
     }
     if Slider.Icons == {} then
         Slider.Icons = {
@@ -41,6 +41,10 @@ function Element:New(Config)
         }
     end
     if Slider.IsTextbox == nil and Slider.Title == nil then Slider.IsTextbox = false else Slider.IsTextbox = Slider.IsTextbox ~= false end
+    local _baseTextBoxWidth = Config.Window.NewElements and 40 or 30
+    local _maxTextLen = #(tostring(Slider.Value.Max or 100) .. Slider.Suffix)
+    Slider.TextBoxWidth = math.max(_baseTextBoxWidth, _maxTextLen * 8)
+    Slider.Width = Slider.Width + math.max(0, Slider.TextBoxWidth - _baseTextBoxWidth)
     
     local isTouch
     local moveconnection
@@ -54,10 +58,13 @@ function Element:New(Config)
     local IsFloat = Slider.Step % 1 ~= 0
     
     local function FormatValue(val)
+        local formattedValue
         if IsFloat then
-            return tonumber(string.format("%.2f", val))
+            formattedValue = tonumber(string.format("%.2f", val))
+        else
+            formattedValue = math.floor(val + 0.5)
         end
-        return math.floor(val + 0.5)
+        return tostring(formattedValue) .. Slider.Suffix
     end
     
     local function CalculateValue(rawValue)
@@ -183,8 +190,8 @@ function Element:New(Config)
         Slider.UIElements.SliderIcon,
         IconTo,
         New("TextBox", {
-            Size = UDim2.new(0,Slider.TextBoxWidth,0,0),
-            TextXAlignment = "Left",
+            Size = UDim2.new(0, Slider.TextBoxWidth, 0, 0),
+            TextXAlignment = "Right",
             Text = FormatValue(Value),
             ThemeTag = {
                 TextColor3 = "Text"
@@ -196,6 +203,10 @@ function Element:New(Config)
             BackgroundTransparency = 1,
             LayoutOrder = -1,
             Visible = Slider.IsTextbox,
+        }, {
+            New("UIPadding", {
+                PaddingRight = UDim.new(0, Slider.Suffix ~= "" and 6 or 0),
+            })
         })
     })
     
@@ -241,9 +252,9 @@ function Element:New(Config)
                         Tween(Slider.UIElements.SliderIcon.Frame, 0.05, {Size = UDim2.new(delta,0,1,0)}):Play()
                         Slider.UIElements.SliderContainer.TextBox.Text = FormatValue(Value)
                         if Tooltip then Tooltip.TitleFrame.Text = FormatValue(Value) end
-                        Slider.Value.Default = FormatValue(Value)
+                        Slider.Value.Default = Value
                         LastValue = Value
-                        Creator.SafeCallback(Slider.Callback, FormatValue(Value))
+                        Creator.SafeCallback(Slider.Callback, Value)
                     end
                     
                     moveconnection = RunService.RenderStepped:Connect(function()
@@ -255,9 +266,9 @@ function Element:New(Config)
                             Tween(Slider.UIElements.SliderIcon.Frame, 0.05, {Size = UDim2.new(delta,0,1,0)}):Play()
                             Slider.UIElements.SliderContainer.TextBox.Text = FormatValue(Value)
                             if Tooltip then Tooltip.TitleFrame.Text = FormatValue(Value) end
-                            Slider.Value.Default = FormatValue(Value)
+                            Slider.Value.Default = Value
                             LastValue = Value
-                            Creator.SafeCallback(Slider.Callback, FormatValue(Value))
+                            Creator.SafeCallback(Slider.Callback, Value)
                         end
                     end)
                     
@@ -285,9 +296,9 @@ function Element:New(Config)
                         Tween(Slider.UIElements.SliderIcon.Frame, 0.05, {Size = UDim2.new(delta,0,1,0)}):Play()
                         Slider.UIElements.SliderContainer.TextBox.Text = FormatValue(Value)
                         if Tooltip then Tooltip.TitleFrame.Text = FormatValue(Value) end
-                        Slider.Value.Default = FormatValue(Value)
+                        Slider.Value.Default = Value
                         LastValue = Value
-                        Creator.SafeCallback(Slider.Callback, FormatValue(Value))
+                        Creator.SafeCallback(Slider.Callback, Value)
                     end
                 end
             end
@@ -320,7 +331,12 @@ function Element:New(Config)
     
     Creator.AddSignal(Slider.UIElements.SliderContainer.TextBox.FocusLost, function(enterPressed)
         if enterPressed then
-            local newValue = tonumber(Slider.UIElements.SliderContainer.TextBox.Text)
+            -- Clean the suffix from input string to parse numeric value correctly
+            local rawText = Slider.UIElements.SliderContainer.TextBox.Text
+            if Slider.Suffix ~= "" then
+                rawText = string.gsub(rawText, Slider.Suffix, "")
+            end
+            local newValue = tonumber(rawText)
             if newValue then
                 Slider:Set(newValue)
             else
@@ -330,7 +346,7 @@ function Element:New(Config)
         end
     end)
     
-    Creator.AddSignal(Slider.UIElements.SliderContainer.InputBegan, function(input)
+    local function HandleInputBegan(input)
         if Slider.Locked or IsSliderHolding then
             return
         end
@@ -343,9 +359,12 @@ function Element:New(Config)
                 Tween(Slider.UIElements.SliderIcon.Frame.Thumb, .24, { ImageTransparency = .85, Size = UDim2.new(0,(Config.Window.NewElements and (Slider.ThumbSize*2) or (Slider.ThumbSize))+8,0,Slider.ThumbSize+8) }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out):Play()
             end
             if Tooltip then Tooltip:Open() end
-            --print("piskaa")
         end
-    end)
+    end
+
+    Creator.AddSignal(Slider.UIElements.SliderContainer.InputBegan, HandleInputBegan)
+    Creator.AddSignal(Slider.UIElements.SliderIcon.InputBegan, HandleInputBegan)
+    Creator.AddSignal(Slider.UIElements.SliderIcon.Frame.Thumb.InputBegan, HandleInputBegan)
     
     return Slider.__type, Slider
 end

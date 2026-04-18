@@ -54,7 +54,12 @@ function Element:New(Config)
         end,
         nil,
         Config.Window.NewElements and 12 or 10,
-        Input.ClearTextOnFocus
+        Input.ClearTextOnFocus,
+        {
+            Numeric = Config.Numeric,
+            MaxLength = Config.MaxLength,
+            Validator = Config.Validator
+        }
     )
     
     if Input.Type == "Input" then

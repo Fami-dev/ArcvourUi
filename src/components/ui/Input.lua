@@ -5,7 +5,7 @@ local New = Creator.New
 local Tween = Creator.Tween
 
 
-function Input.New(Placeholder, Icon, Parent, Type, Callback, OnChange, Radius, ClearTextOnFocus)
+function Input.New(Placeholder, Icon, Parent, Type, Callback, OnChange, Radius, ClearTextOnFocus, Validation)
     Type = Type or "Input"
     local Radius = Radius or 10
     local IconInputFrame
@@ -43,6 +43,24 @@ function Input.New(Placeholder, Icon, Parent, Type, Callback, OnChange, Radius, 
         },
     })
     
+    local BorderFrame
+    BorderFrame = Creator.NewRoundFrame(Radius, "Glass-1", {
+        ThemeTag = {
+            ImageColor3 = "Outline",
+        },
+        Size = UDim2.new(1,0,1,0),
+        ImageTransparency = .75,
+    })
+
+    -- Background merah untuk error state
+    local ErrorBg = Creator.NewRoundFrame(Radius, "Squircle", {
+        ImageColor3 = Color3.fromRGB(255, 60, 60),
+        Size = UDim2.new(1,0,1,0),
+        ImageTransparency = 1, -- hidden by default
+        Name = "ErrorBg",
+        ZIndex = 0,
+    })
+
     local InputFrame = New("Frame", {
         Size = UDim2.new(1,0,0,42),
         Parent = Parent,
@@ -59,27 +77,8 @@ function Input.New(Placeholder, Icon, Parent, Type, Callback, OnChange, Radius, 
                 Size = UDim2.new(1,0,1,0),
                 ImageTransparency = .97,
             }),
-            Creator.NewRoundFrame(Radius, "Glass-1", {
-                ThemeTag = {
-                    ImageColor3 = "Outline",
-                },
-                Size = UDim2.new(1,0,1,0),
-                ImageTransparency = .75,
-            }, {
-                -- New("UIGradient", {
-                --     Rotation = 70,
-                --     Color = ColorSequence.new({
-                --         ColorSequenceKeypoint.new(0.0, Color3.fromRGB(255, 255, 255)),
-                --         ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
-                --         ColorSequenceKeypoint.new(1.0, Color3.fromRGB(255, 255, 255)),
-                --     }),
-                --     Transparency = NumberSequence.new({
-                --         NumberSequenceKeypoint.new(0.0, 0.1),
-                --         NumberSequenceKeypoint.new(0.5, 1),
-                --         NumberSequenceKeypoint.new(1.0, 0.1),
-                --     })
-                -- })
-            }),
+            ErrorBg,
+            BorderFrame,
             Creator.NewRoundFrame(Radius, "Squircle", {
                 Size = UDim2.new(1,0,1,0),
                 Name = "Frame",
@@ -103,30 +102,96 @@ function Input.New(Placeholder, Icon, Parent, Type, Callback, OnChange, Radius, 
             })
         })
     })
-    
-    -- InputFrame:GetPropertyChangedSignal("AbsoluteSize"), function()
-    --     TextBox.Size = UDim2.new(
-    --         0,
-    --         IconInputFrame and InputFrame.AbsoluteSize.X -29-12 or InputFrame.AbsoluteSize.X-12,
-    --         1,
-    --         0
-    --     )
-    -- end)
-    
-    if OnChange then
-        Creator.AddSignal(TextBox:GetPropertyChangedSignal("Text"), function()
-            if Callback then
-                Creator.SafeCallback(Callback, TextBox.Text)
+
+    -- Terapkan MaxLength via Roblox native property (hard limit, tidak bisa diketik lebih)
+    if Validation and Validation.MaxLength then
+        TextBox.MaxVisibleGraphemes = Validation.MaxLength
+        -- Roblox tidak punya MaxLength native, kita pakai pendekatan lain:
+        -- MaxVisibleGraphemes hanya visual, jadi kita tetap perlu guard di signal
+        TextBox.MaxVisibleGraphemes = -1 -- reset, kita handle manual
+    end
+
+    local function SetError(isError)
+        if isError then
+            -- Border merah
+            Tween(BorderFrame, 0.15, {
+                ImageColor3 = Color3.fromRGB(255, 70, 70),
+                ImageTransparency = 0
+            }):Play()
+            -- Background merah transparan
+            Tween(ErrorBg, 0.15, {ImageTransparency = 0.88}):Play()
+            -- Teks merah
+            Tween(TextBox, 0.15, {TextColor3 = Color3.fromRGB(255, 110, 110)}):Play()
+        else
+            -- Kembalikan border normal
+            Creator.SetThemeTag(BorderFrame, {ImageColor3 = "Outline"})
+            Tween(BorderFrame, 0.2, {ImageTransparency = 0.75}):Play()
+            -- Sembunyikan background merah
+            Tween(ErrorBg, 0.2, {ImageTransparency = 1}):Play()
+            -- Kembalikan warna teks normal
+            Creator.SetThemeTag(TextBox, {TextColor3 = "Text"})
+        end
+    end
+
+    local isChangingText = false
+    Creator.AddSignal(TextBox:GetPropertyChangedSignal("Text"), function()
+        if isChangingText then return end
+        local text = TextBox.Text
+
+        -- 1. Numeric Only: buang karakter non-angka secara langsung
+        if Validation and Validation.Numeric then
+            local numericText = text:gsub("[^%d.-]", "")
+            if text ~= numericText then
+                isChangingText = true
+                TextBox.Text = numericText
+                isChangingText = false
+                text = numericText
+                SetError(true)
+                task.delay(0.4, function() SetError(false) end)
             end
-        end)
-    else
+        end
+
+        -- 2. MaxLength: potong teks jika melebihi batas
+        if Validation and Validation.MaxLength and #text > Validation.MaxLength then
+            isChangingText = true
+            TextBox.Text = text:sub(1, Validation.MaxLength)
+            isChangingText = false
+            text = TextBox.Text
+            SetError(true)
+            task.delay(0.4, function() SetError(false) end)
+        end
+
+        -- 3. Custom Validator: jalan real-time saat mengetik
+        if Validation and Validation.Validator then
+            local isValid = Validation.Validator(text)
+            SetError(not isValid)
+            -- Hanya trigger callback jika valid
+            if isValid and OnChange and Callback then
+                Creator.SafeCallback(Callback, text)
+            end
+            return
+        end
+
+        -- Jika tidak ada Validator, trigger callback normal
+        if OnChange and Callback then
+            Creator.SafeCallback(Callback, text)
+        end
+    end)
+
+    if not OnChange then
         Creator.AddSignal(TextBox.FocusLost, function()
-            if Callback then
-                Creator.SafeCallback(Callback, TextBox.Text)
+            local text = TextBox.Text
+            local isValid = true
+            if Validation and Validation.Validator then
+                isValid = Validation.Validator(text)
+                SetError(not isValid)
+            end
+            if isValid and Callback then
+                Creator.SafeCallback(Callback, text)
             end
         end)
     end
-    
+
     return InputFrame
 end
 

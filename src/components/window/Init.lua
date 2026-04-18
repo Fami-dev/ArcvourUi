@@ -12,6 +12,8 @@ local Creator = require("../../modules/Creator")
 local New = Creator.New
 local Tween = Creator.Tween
 
+local FloatingButtonModule = require("../../modules/FloatingButton")
+
 --local UIComponents = require("../Components/UI.lua")
 local CreateLabel = require("../ui/Label").New
 local CreateButton = require("../ui/Button").New
@@ -828,6 +830,7 @@ return function(Config)
     end
     
     function Window:CreateTopbarButton(Name, Icon, Callback, LayoutOrder, IconThemed, Color, IconSize)
+        LayoutOrder = LayoutOrder or 999
         local IconFrame = Creator.Image(
             Icon,
             Icon,
@@ -1101,7 +1104,11 @@ return function(Config)
     
     
     Window:CreateTopbarButton("Minimize", "minus", function() 
-        Window:Close()
+        if Window.FloatingButton then
+            Window:Minimize()
+        else
+            Window:Close()
+        end
         -- task.spawn(function()
         --     task.wait(.3)
         --     if not Window.IsPC and Window.IsOpenButtonEnabled then
@@ -1436,6 +1443,14 @@ return function(Config)
     
     if Window.OpenButton and typeof(Window.OpenButton) == "table" then
         Window:EditOpenButton(Window.OpenButton)
+    end
+    
+    
+    function Window:SetFloatingButton(FloatingConfig)
+        if Config.WindUI.FloatingButton then
+            FloatingConfig.Window = Window
+            Window.FloatingButton = Config.WindUI.FloatingButton.new(FloatingConfig)
+        end
     end
     
     
@@ -1894,6 +1909,62 @@ return function(Config)
                     i.Object.Visible = false
                 end
             end
+        end
+    end
+    
+    function Window:SetFloatingButton(Config)
+        if Window.FloatingButton then
+             Window.FloatingButton:Destroy()
+             Window.FloatingButton = nil
+        end
+        Config = Config or {}
+        Config.Window = Window
+        Window.FloatingButton = FloatingButtonModule.new(Config)
+    end
+
+    function Window:Minimize()
+        Window.UIElements.Main.Visible = false
+        if Window.FloatingButton then
+             Window.FloatingButton:Show()
+        end
+    end
+
+    function Window:Open()
+        Window.UIElements.Main.Visible = true
+        Config.WindUI.Transparent = Window.Transparent
+        if Window.FloatingButton then
+             Window.FloatingButton:Hide()
+        end
+        if Window.OnOpenCallback then
+             Window.OnOpenCallback()
+        end
+    end
+    
+    function Window:Toggle(state)
+        if state == nil then state = not Window.UIElements.Main.Visible end
+        if state then
+            Window:Open()
+        else
+            Window:Minimize()
+        end
+    end
+    
+    function Window:Close()
+        -- Default destroy
+        Window:Destroy()
+    end
+    
+    function Window:Destroy()
+        if Window.Destroyed then return end
+        Window.Destroyed = true
+        if Window.FloatingButton then
+            Window.FloatingButton:Destroy()
+        end
+        Config.WindUI.Window = nil
+        Config.Parent:ClearAllChildren()
+        Window.UIElements.Main:Destroy()
+        if Window.OnDestroyCallback then
+            Window.OnDestroyCallback()
         end
     end
     

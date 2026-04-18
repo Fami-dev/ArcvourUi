@@ -48,7 +48,7 @@ function DropdownMenu.New(Config, Dropdown, Element, CanCallback, Type)
         }),
 		New("Frame", {
 		    BackgroundTransparency = 1,
-		    Size = UDim2.new(1,0,1,Dropdown.SearchBarEnabled and -Element.MenuPadding-Element.SearchBarHeight ),
+		    Size = UDim2.new(1,0,1,Dropdown.SearchBarEnabled and (-Element.MenuPadding-Element.SearchBarHeight) or 0),
 		    --Name = "CanvasGroup",
 		    ClipsDescendants = true,
 		    LayoutOrder = 999,
@@ -528,6 +528,112 @@ function DropdownMenu.New(Config, Dropdown, Element, CanCallback, Type)
             end
         end
         DropdownModule:Refresh(Dropdown.Values)
+    end
+    
+    -- SetValue: update nilai terpilih dari luar, tanpa rebuild semua item
+    -- ignoreCallback = true → tidak trigger Callback (default false/nil = trigger)
+    function DropdownModule:SetValue(value, ignoreCallback)
+        if value ~= nil then
+            -- Resolve index ke value jika perlu
+            if Dropdown.Values and typeof(value) == "number" then
+                value = Dropdown.Values[value]
+            end
+            Dropdown.Value = value
+        else
+            Dropdown.Value = Dropdown.Multi and {} or nil
+        end
+        
+        -- Update visual state setiap tab item tanpa rebuild
+        for _, tab in next, Dropdown.Tabs do
+            local isSelected = false
+            if Dropdown.Multi then
+                if typeof(Dropdown.Value) == "table" then
+                    for _, item in ipairs(Dropdown.Value) do
+                        local itemName = typeof(item) == "table" and item.Title or item
+                        if itemName == tab.Name then
+                            isSelected = true
+                            break
+                        end
+                    end
+                end
+            else
+                local currentValue = typeof(Dropdown.Value) == "table" and Dropdown.Value.Title or Dropdown.Value
+                isSelected = currentValue == tab.Name
+            end
+            
+            tab.Selected = isSelected
+            if isSelected and not tab.Locked then
+                Tween(tab.UIElements.TabItem, 0.1, {ImageTransparency = .95}):Play()
+                Tween(tab.UIElements.TabItem.Highlight, 0.1, {ImageTransparency = .75}):Play()
+                Tween(tab.UIElements.TabItem.Frame.Title.TextLabel, 0.1, {TextTransparency = 0}):Play()
+                if tab.UIElements.TabIcon then
+                    Tween(tab.UIElements.TabIcon.ImageLabel, 0.1, {ImageTransparency = 0}):Play()
+                end
+            elseif not tab.Locked then
+                Tween(tab.UIElements.TabItem, 0.1, {ImageTransparency = 1}):Play()
+                Tween(tab.UIElements.TabItem.Highlight, 0.1, {ImageTransparency = 1}):Play()
+                Tween(tab.UIElements.TabItem.Frame.Title.TextLabel, 0.1, {TextTransparency = .4}):Play()
+                if tab.UIElements.TabIcon then
+                    Tween(tab.UIElements.TabIcon.ImageLabel, 0.1, {ImageTransparency = .2}):Play()
+                end
+            end
+        end
+        
+        -- Update display label
+        DropdownModule:Display()
+        
+        -- Trigger callback kecuali ignoreCallback = true
+        if not ignoreCallback and Dropdown.Callback then
+            task.spawn(function()
+                Creator.SafeCallback(Dropdown.Callback, Dropdown.Value)
+            end)
+        end
+    end
+    
+    -- SetValues: ganti list items secara dinamis
+    -- keepValue = true → pertahankan value yang sedang dipilih jika masih ada di list baru
+    function DropdownModule:SetValues(newValues, keepValue)
+        if not newValues then return end
+        
+        local prevValue = Dropdown.Value
+        
+        if not keepValue then
+            -- Reset value
+            Dropdown.Value = Dropdown.Multi and {} or nil
+        else
+            -- Validasi apakah value lama masih ada di list baru
+            if Dropdown.Multi then
+                local validValues = {}
+                if typeof(prevValue) == "table" then
+                    for _, selected in ipairs(prevValue) do
+                        local selectedName = typeof(selected) == "table" and selected.Title or selected
+                        for _, newItem in ipairs(newValues) do
+                            local newName = typeof(newItem) == "table" and newItem.Title or newItem
+                            if newName == selectedName then
+                                table.insert(validValues, selected)
+                                break
+                            end
+                        end
+                    end
+                end
+                Dropdown.Value = validValues
+            else
+                local currentName = typeof(prevValue) == "table" and prevValue.Title or prevValue
+                local found = false
+                for _, newItem in ipairs(newValues) do
+                    local newName = typeof(newItem) == "table" and newItem.Title or newItem
+                    if newName == currentName then
+                        found = true
+                        break
+                    end
+                end
+                if not found then
+                    Dropdown.Value = nil
+                end
+            end
+        end
+        
+        DropdownModule:Refresh(newValues)
     end
     
     RecalculateListSize()

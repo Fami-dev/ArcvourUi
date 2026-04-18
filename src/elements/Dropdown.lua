@@ -95,6 +95,8 @@ function Element:New(Config)
     Dropdown.Display = Dropdown.DropdownMenu.Display
     Dropdown.Refresh = Dropdown.DropdownMenu.Refresh
     Dropdown.Select = Dropdown.DropdownMenu.Select
+    Dropdown.SetValue = Dropdown.DropdownMenu.SetValue
+    Dropdown.SetValues = Dropdown.DropdownMenu.SetValues
     Dropdown.Open = Dropdown.DropdownMenu.Open
     Dropdown.Close = Dropdown.DropdownMenu.Close
     

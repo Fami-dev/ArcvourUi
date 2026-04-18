@@ -126,7 +126,7 @@ function TabModule.New(Config, UIScale)
                 },
                 TextTransparency = not Tab.Locked and 0.4 or .7,
                 TextSize = 15,
-                Size = UDim2.new(1,0,0,0),
+                Size = UDim2.new(1,Tab.Locked and -14-(2+(Window.UIPadding/2)) or 0,0,0),
                 FontFace = Font.new(Creator.Font, Enum.FontWeight.Medium),
                 TextWrapped = true,
                 RichText = true,
@@ -142,6 +142,19 @@ function TabModule.New(Config, UIScale)
                     PaddingBottom = UDim.new(0,Tab.TitlePaddingY)
                 })
             }),
+            Tab.Locked and New("ImageLabel", {
+                Image = Creator.Icon("lock")[1],
+                ImageRectOffset = Creator.Icon("lock")[2].ImageRectPosition,
+                ImageRectSize = Creator.Icon("lock")[2].ImageRectSize,
+                Size = UDim2.new(0,12,0,12),
+                BackgroundTransparency = 1,
+                ThemeTag = {
+                    ImageColor3 = "Icon",
+                },
+                ImageTransparency = 0.4,
+                LayoutOrder = 3,
+                Name = "LockIcon",
+            }) or nil,
             New("UIPadding", {
                 PaddingTop = UDim.new(0,Tab.TabPaddingY),
                 PaddingLeft = UDim.new(0,Tab.TabPaddingX),

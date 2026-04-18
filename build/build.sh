@@ -51,10 +51,13 @@ DARKLUA_OUT=$(darklua process "$INPUT" dist/temp.lua --config "$CONFIG" 2>&1)
 DARKLUA_EXIT=$?
 
 if [ $DARKLUA_EXIT -ne 0 ]; then
-    echo -e "${E}[ × ]${R} DarkLua failed"
-    echo "$DARKLUA_OUT"
-    rm -f dist/temp.lua
-    exit 1
+    echo -e "${E}[ × ]${R} DarkLua failed/missing, attempting fallback bundler..."
+    node build/bundle.js "$INPUT" dist/temp.lua
+    if [ $? -ne 0 ]; then
+         echo -e "${E}[ × ]${R} Fallback bundler failed"
+         rm -f dist/temp.lua
+         exit 1
+    fi
 fi
 
 END=$(date +%s%N)
@@ -63,7 +66,7 @@ TIME=$((($END - $START) / 1000000))
 echo "$HEADER" > "$OUTPUT"
 echo "" >> "$OUTPUT"
 cat dist/temp.lua >> "$OUTPUT"
-rm -f dist/temp.lua
+# rm -f dist/temp.lua
 
 SIZE=$(($(wc -c < "$OUTPUT") / 1024))
 
