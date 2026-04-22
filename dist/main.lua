@@ -7366,7 +7366,9 @@ function Element:New(Config)
         end
         if config.Desc then
             Slider.Desc = config.Desc
-            if Slider.UIElements.Desc then
+            if Slider.SliderFrame and Slider.SliderFrame.SetDesc then
+                Slider.SliderFrame:SetDesc(config.Desc)
+            elseif Slider.UIElements.Desc then
                 Slider.UIElements.Desc.Text = config.Desc
             end
         end
