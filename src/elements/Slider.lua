@@ -366,6 +366,33 @@ function Element:New(Config)
     Creator.AddSignal(Slider.UIElements.SliderIcon.InputBegan, HandleInputBegan)
     Creator.AddSignal(Slider.UIElements.SliderIcon.Frame.Thumb.InputBegan, HandleInputBegan)
     
+    function Slider:Update(config)
+        if config.Title then
+            Slider.Title = config.Title
+            Slider.UIElements.Title.Text = config.Title
+        end
+        if config.Desc then
+            Slider.Desc = config.Desc
+            if Slider.UIElements.Desc then
+                Slider.UIElements.Desc.Text = config.Desc
+            end
+        end
+        if config.Value ~= nil then
+            if type(config.Value) == "table" then
+                if config.Value.Min then Slider:SetMin(config.Value.Min) end
+                if config.Value.Max then Slider:SetMax(config.Value.Max) end
+                if config.Value.Default then Slider:Set(config.Value.Default) end
+            elseif type(config.Value) == "number" then
+                Slider:Set(config.Value)
+            end
+        end
+        if config.Suffix and config.Suffix ~= Slider.Suffix then
+            Slider.Suffix = config.Suffix
+            Slider.UIElements.SliderContainer.TextBox.Text = FormatValue(LastValue)
+            if Tooltip then Tooltip.TitleFrame.Text = FormatValue(LastValue) end
+        end
+    end
+
     return Slider.__type, Slider
 end
 
